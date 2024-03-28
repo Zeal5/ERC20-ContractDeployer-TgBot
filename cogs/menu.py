@@ -9,16 +9,24 @@ from telegram.ext import (
 )
 
 from CustomExceptions import UnknownUserCallData
+from .deploy_tokens import deploy
+
+
 SHOW_MENU_BUTTONS, GENERATE_WALLET, DEPLOY_TOKEN1, DEPLOY_TOKEN2 = range(4)
+
 
 async def generate_wallet(update: Update, context: CallbackContext) -> int:
     pass
 
+
 async def deploy_token2(update: Update, context: CallbackContext) -> int:
     pass
 
-async def deploy_token1(update: Update, context: CallbackContext) -> int:
 
+async def deploy_token1(update: Update, context: CallbackContext) -> int:
+    x = await deploy()
+    await context.bot.send_message(update.effective_chat.id, x)
+    ConversationHandler.END
 
 
 async def menu_button_clicked(update: Update, context: CallbackContext) -> int:
@@ -29,19 +37,21 @@ async def menu_button_clicked(update: Update, context: CallbackContext) -> int:
         deploy_token2   -> Deploy Token2
     """
     query = update.callback_query.data
-    query = None
     try:
         if query is not None:
+            await context.bot.delete_message(
+                update.effective_chat.id, context.user_data["wallet_menu_buttons"]
+            )
             match query:
-            #     case "generate_wallet":
-            #         return GENERATE_WALLET
+                #     case "generate_wallet":
+                #         return GENERATE_WALLET
                 case "deploy_token1":
-                    return DEPLOY_TOKEN1
+                    await deploy_token1(update, context)
+
                 case "deploy_token2":
                     return DEPLOY_TOKEN2
         else:
-            raise UnknownUserCallData(context = context,
-                                      chat_id = update.effective_chat.id) 
+            raise UnknownUserCallData(context=context, chat_id=update.effective_chat.id)
     except UnknownUserCallData as e:
         await e.CallDataIsNone()
 
