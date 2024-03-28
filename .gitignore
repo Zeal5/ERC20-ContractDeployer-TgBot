@@ -1,3 +1,5 @@
 .env
 __cache__/
 .venv/
+__pycache__/
+call_backData.docs.txt
