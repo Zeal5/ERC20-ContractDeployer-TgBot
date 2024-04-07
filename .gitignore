@@ -4,3 +4,5 @@ __cache__/
 __pycache__/
 call_backData.docs.txt
 ABI/BasuFactory.json
+ABI/BasuToken.json
+ABI/IUniswapV2Router02.json
