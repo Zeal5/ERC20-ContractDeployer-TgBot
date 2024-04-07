@@ -24,8 +24,8 @@ class Users(Base):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(primary_key=True)
     tg_id: Mapped[int]  = mapped_column(BIGINT,nullable=False, index=True, unique=True)
-    wallet : Mapped['Wallet'] = relationship(backref='user')
     wallet_id = Column(Integer, ForeignKey('wallets.id'))
+    wallet = relationship("Wallet", backref="user",lazy= "joined")
 
 
 class Wallet(Base):

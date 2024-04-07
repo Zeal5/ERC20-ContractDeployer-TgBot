@@ -20,4 +20,17 @@ class UnknownUserCallData(Exception):
         else:
             print("context and chat_id were None")
 
+class SomethingWentWrongWhileCreatingUser(Exception):
+    def __init__(self, message:Optional[str] = None, context:Optional[CallbackContext] = None, chat_id : Optional[int] = None):
+        self.message = message
+        self.context = context
+        self.chat_id = chat_id
 
+    async def UserNotCreated(self):
+        """ return Couldn't create new user"""
+        if self.message is not None:
+            await self.context.bot.send_message(self.chat_id, self.message)
+        elif self.chat_id is not None:
+            await self.context.bot.send_message(self.chat_id,"Failed to create new user create new user")
+        else:
+            print("context and chat_id were None")
