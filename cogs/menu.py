@@ -1,4 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from time import time
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -9,8 +10,7 @@ from telegram.ext import (
 )
 from dataclasses import dataclass
 from typing import Optional
-
-from CustomExceptions import UnknownUserCallData, SomethingWentWrongWhileCreatingUser
+from CustomExceptions import UnknownUserCallData
 from cogs.menu_handler.deploy_tokens import AsyncDeployer
 from cogs.menu_handler.generate_wallet import get_wallet_info
 
@@ -21,11 +21,13 @@ class Token:
     symbol: str
     supply: int
 
+
 @dataclass
 class TokenInfo:
-    buy_tax:int
-    sell_tax:int
-    owner_address : str
+    buy_tax: int
+    sell_tax: int
+    owner_address: str
+
 
 (
     SHOW_MENU_BUTTONS,
@@ -35,7 +37,8 @@ class TokenInfo:
     START_DEPLOYMENT,
     LOW_GAS_FEE,
     ADD_LIQ,
-) = range(7)
+    LOCK_LIQ,
+) = range(8)
 
 
 def clean_token_args(_args: str) -> Optional[Token]:
@@ -67,9 +70,7 @@ async def start_deployment(update: Update, context: CallbackContext):
                     )
 
                     # On successful token launch send token args
-                    txn_hash = await _deployer.wait_for_tx_hash(
-                        token_deployment_hash
-                    )
+                    txn_hash = await _deployer.wait_for_tx_hash(token_deployment_hash)
                     logs = await _deployer.wait_for_event_logs(txn_hash)
                     # if not logs:
                     #     raise Exception()
@@ -82,7 +83,12 @@ async def start_deployment(update: Update, context: CallbackContext):
                         parse_mode="Markdown",
                     )
                     # @DEV
-                    await add_liq_clicked(update, context)
+                    await context.bot.send_message(
+                        update.effective_chat.id,
+                        "How much ETH to add to liq",
+                        parse_mode="Markdown",
+                    )
+                    return ADD_LIQ
                 case "no":
                     print("selected no ")
                     await context.bot.send_message(
@@ -93,7 +99,6 @@ async def start_deployment(update: Update, context: CallbackContext):
                     ConversationHandler.END
         else:
             raise UnknownUserCallData(context=context, chat_id=update.effective_chat.id)
-
 
     except UnknownUserCallData as e:
         await e.CallDataIsNone()
@@ -106,8 +111,6 @@ async def start_deployment(update: Update, context: CallbackContext):
         )
 
         ConversationHandler.END
-
-
 
 
 async def prompt_low_gas_fee(update: Update, context: CallbackContext):
@@ -129,25 +132,24 @@ async def prompt_low_gas_fee(update: Update, context: CallbackContext):
     await pre_deployment_prompt(update, context, gas_fee)
     return START_DEPLOYMENT
 
-def  clean_token_tax_info(_info : str):
+
+def clean_token_tax_info(_info: str):
     try:
         buy_tax, sell_tax, owner = _info.strip().split()
-        if not owner.startswith('0x') or  len(owner) != 42:
+        if not owner.startswith("0x") or len(owner) != 42:
             return False
 
-        return TokenInfo(
-                int(buy_tax),
-                int(sell_tax),
-                str(owner))
+        return TokenInfo(int(buy_tax), int(sell_tax), str(owner))
     except Exception as e:
         print(f"exception in cleaning tax info {str(e)}")
         return None
+
 
 async def deploy_token(update: Update, context: CallbackContext):
     _reply = update.message.text
     clean_tax_info = clean_token_tax_info(_reply)
     print(clean_tax_info)
-    if not isinstance(clean_tax_info,TokenInfo):
+    if not isinstance(clean_tax_info, TokenInfo):
         await update.message.reply_text("Invalid Input")
         return DEPLOY_TOKEN1
     # Check wallet balance is gt cost of deployment and liq
@@ -157,7 +159,7 @@ async def deploy_token(update: Update, context: CallbackContext):
     owner_addr = clean_tax_info.owner_address
     basu_funds_addr = "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
 
-    _token = context.user_data['token_info']
+    _token = context.user_data["token_info"]
     deployer = AsyncDeployer(
         update.effective_user.id,
         supply=_token.supply,
@@ -171,10 +173,10 @@ async def deploy_token(update: Update, context: CallbackContext):
     )
     print("deployer initiated")
     context.user_data["deployer"] = deployer
+    # @DEV if no account found uncomment
     await deployer.get_account()
 
     # Prompt user for confirmation of gas fee get gas fee
-    """
     gas_fee = await deployer.estimate_gas(True)
     wallet_balance = await deployer.check_wallet_balance()
     print("required gas fee")
@@ -187,10 +189,7 @@ async def deploy_token(update: Update, context: CallbackContext):
         )
         return LOW_GAS_FEE
     await pre_deployment_prompt(update, context, gas_fee)
-    """
-    await pre_deployment_prompt(update, context, 2.1)
     return START_DEPLOYMENT
-
 
 
 async def get_token_args(update: Update, context: CallbackContext):
@@ -201,10 +200,11 @@ async def get_token_args(update: Update, context: CallbackContext):
         await update.message.reply_text("Invalid Input")
         return GET_TOKEN_ARGS
 
-    context.user_data['token_info'] = _token
+    context.user_data["token_info"] = _token
     # get taxes and owner address
     await context.bot.send_message(
-    update.effective_chat.id, "Enter BUY tax Sell tax and owner address.\nSeperated by space"
+        update.effective_chat.id,
+        "Enter BUY tax Sell tax and owner address.\nSeperated by space",
     )
     return DEPLOY_TOKEN1
 
@@ -227,15 +227,30 @@ async def pre_deployment_prompt(update: Update, context: CallbackContext, gas_fe
 async def add_liq_clicked(update: Update, context: CallbackQueryHandler):
     # Show total cost
     # Add liq
+    liq_value = update.message.text
+    try:
+        liq_value = float(liq_value.strip())
+    except Exception as e:
+        print(f"error while parsing liq value {str(e)}")
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "Wrong Valu: How much ETH to add to liq",
+            parse_mode="Markdown",
+        )
+        return ADD_LIQ
     _deployer = context.user_data["deployer"]
-    wait_liq_adding_message = await context.bot.send_message(
-        update.effective_chat.id, "ETH to add to liq", parse_mode="Markdown"
+
+    txn_hash = await _deployer.add_liquidity(
+        context.user_data["token_address"], liq_value
     )
+    if txn_hash is None:
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "Failed to add liq to token",
+            parse_mode="Markdown",
+        )
+        return ConversationHandler.END
 
-
-
-    txn_hash = await _deployer.add_liquidity(context.user_data["token_address"], 0.2)
-    await context.bot.delete_message(update.effective_chat.id, wait_liq_adding_message.id)
     await context.bot.send_message(
         update.effective_chat.id, txn_hash, parse_mode="Markdown"
     )
@@ -247,6 +262,52 @@ async def add_liq_clicked(update: Update, context: CallbackQueryHandler):
     await context.bot.send_message(
         update.effective_chat.id, log_message, parse_mode="Markdown"
     )
+    # Lock liquidity
+    await prompt_lock_duration(update, context)
+    return LOCK_LIQ
+
+
+async def lock_liq_function(update: Update, context: CallbackContext):
+    await context.bot.delete_message(
+        update.effective_chat.id, context.user_data["lock_duration"]
+    )
+    query = update.callback_query.data
+    duration = 0
+    if query is not None:
+        match query:
+            case '1week':
+                duration = int(time()) + (7 * 24 * 60 * 60)
+            case '15days':
+                duration = int(time()) + (15 * 24 * 60 * 60)
+            case '1month':
+                duration = int(time()) + (30 * 24 * 60 * 60)
+            case '1year':
+                duration = int(time()) + (367 * 24 * 60 * 60)
+    print(f"duration to lock {duration}")
+    _deployer = context.user_data["deployer"]
+    _token_address = context.user_data["token_address"]
+    hash = await _deployer.lock_tokens(_token_address,duration)
+    await context.bot.send_message(update.effective_chat.id, f"LIQ lock hash\n{hash}")
+    
+
+async def prompt_lock_duration(update: Update, context: CallbackContext):
+    button1 = InlineKeyboardButton("1 WEEK", callback_data="1week")
+    button2 = InlineKeyboardButton("15 DAYS", callback_data="15days")
+    button3 = InlineKeyboardButton("1 MONTH", callback_data="1month")
+    button4 = InlineKeyboardButton("1 YEAR", callback_data="1year")
+
+    # Combine the two buttons in a single row, each list represents a new row
+    keyboard = [
+        [button1, button2],
+        [button3, button4],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    wallet_menu_buttons = await context.bot.send_message(
+        update.effective_chat.id, "SELECT LOCK DURATION", reply_markup=reply_markup
+    )
+    context.user_data["lock_duration"] = wallet_menu_buttons.id
 
 
 async def menu_button_clicked(update: Update, context: CallbackContext) -> int:
@@ -272,12 +333,10 @@ async def menu_button_clicked(update: Update, context: CallbackContext) -> int:
                         update.effective_chat.id, message, parse_mode="Markdown"
                     )
                     return GET_TOKEN_ARGS
-
         else:
             raise UnknownUserCallData(context=context, chat_id=update.effective_chat.id)
     except UnknownUserCallData as e:
         await e.CallDataIsNone()
-
     # ConversationHandler.END
 
 
@@ -315,7 +374,6 @@ async def fall_back(update: Update, context: CallbackContext):
     if command == "manage_wallets":
         return await enter_main_menu(update, context)
         # return ConversationHandler.END
-
     print("ending wallet manager convo")
     return ConversationHandler.END
 
@@ -327,10 +385,12 @@ menu_convo_handler = ConversationHandler(
     ],
     states={
         SHOW_MENU_BUTTONS: [CallbackQueryHandler(menu_button_clicked)],
-        GET_TOKEN_ARGS: [MessageHandler(filters.TEXT,get_token_args)],
-        DEPLOY_TOKEN1: [MessageHandler(filters.TEXT,deploy_token)],
+        GET_TOKEN_ARGS: [MessageHandler(filters.TEXT, get_token_args)],
+        DEPLOY_TOKEN1: [MessageHandler(filters.TEXT, deploy_token)],
         START_DEPLOYMENT: [CallbackQueryHandler(start_deployment)],
         LOW_GAS_FEE: [MessageHandler(filters.TEXT, prompt_low_gas_fee)],
+        LOCK_LIQ: [CallbackQueryHandler(lock_liq_function)],
+        ADD_LIQ: [MessageHandler(filters.TEXT, add_liq_clicked)],
     },
     fallbacks=[
         MessageHandler(None, fall_back),
