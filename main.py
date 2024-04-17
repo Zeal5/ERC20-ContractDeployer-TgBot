@@ -7,7 +7,10 @@ from cogs.menu import menu_convo_handler
 from cogs.Wallet import db_startup
 
 # std imports 
-import os
+import os, base64
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
 
 
 load_dotenv()
@@ -23,10 +26,27 @@ async def at_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is not None and update.effective_user is not None:
         await update.message.reply_text(f'db has been created {update.effective_user.id}{update.effective_user.first_name}')
 
+async def set_encryption_key(update :Update, context:ContextTypes.DEFAULT_TYPE):
+    _key = update.message.text
+    paswd = _key.strip().split()[-1]
+    print(paswd)
+    salt = b'salty_'  
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,  # Number of iterations
+        backend=default_backend()
+    )
+    key = kdf.derive(paswd.encode())
+    os.environ['KEY'] = base64.urlsafe_b64encode(key).decode('utf-8')
+
+
 
 def main():
     app = ApplicationBuilder().token(API).build()
     app.add_handler(CommandHandler("createdb",at_start))
+    app.add_handler(CommandHandler("key", set_encryption_key))
 
     # add cogs here 
     app.add_handler(menu_convo_handler,1)
