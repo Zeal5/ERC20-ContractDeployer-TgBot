@@ -2,16 +2,28 @@ from . import Session
 from .models import Users, Wallet
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy import insert, exists, update
-from sqlalchemy.orm import joinedload
 from typing import Union
 from eth_account import Account
-from dataclasses import dataclass
 from . import UserInfo
+import os
+from cryptography.fernet import Fernet
 
 
+def encrypt_wallet_secret(data):
+    key = os.environ.get("KEY")
+    f = Fernet(key)
+    return f.encrypt(data.encode()).decode("utf-8")
 
-async def _check_user_exists(_id: int) -> Union[bool,UserInfo]:
+
+def decrypt_wallet_secret(data):
+    key = os.environ.get("KEY")
+    print(f'seceret stored {data}')
+    print(key)
+    f = Fernet(key)
+    return f.decrypt(data.encode()).decode("utf-8")
+
+
+async def _check_user_exists(_id: int) -> Union[bool, UserInfo]:
     """Checks if user with tg_id exists in database
 
     Args:
@@ -24,18 +36,18 @@ async def _check_user_exists(_id: int) -> Union[bool,UserInfo]:
         async with s.begin():
             try:
                 user = await s.execute(select(Users).filter(Users.tg_id == _id))
-                # print(user.scalar_one().wallet)
-                # return users.scalar_one().id
                 user = user.scalars().first()
                 if not user:
                     return False
 
-                return UserInfo(tg_id = _id ,
-                                address = user.wallet.address,
-                                secret = user.wallet.secret)
+                return UserInfo(
+                    tg_id=_id,
+                    address=user.wallet.address,
+                    secret=decrypt_wallet_secret(user.wallet.secret),
+                )
 
             except NoResultFound as e:
-                print(f'error {str(e)}')
+                print(f"error {str(e)}")
                 return False
 
 
@@ -44,24 +56,27 @@ async def add_user_and_wallet(tg_id: int):
     if isinstance(user_exists, UserInfo):
         return user_exists
 
-    account = Account.create(f'{tg_id}')
+    account = Account.create(f"{tg_id}")
     try:
         async with Session() as session:
             async with session.begin():
                 # Create a new wallet
-                new_wallet = Wallet(secret=account._private_key.hex(),address=account.address)
+                new_wallet = Wallet(
+                    secret=encrypt_wallet_secret(account._private_key.hex()),
+                    address=account.address,
+                )
                 session.add(new_wallet)
-                await session.flush() # Flush the session to get the wallet's ID
+                await session.flush()  # Flush the session to get the wallet's ID
 
                 # Create a new user with the wallet
                 new_user = Users(tg_id=tg_id, wallet_id=new_wallet.id)
                 session.add(new_user)
 
             await session.commit()
-            return UserInfo(tg_id = tg_id,
-                            address = account.address,
-                            secret = account._private_key.hex())
+            return UserInfo(
+                tg_id=tg_id, address=account.address, secret=account._private_key.hex()
+            )
     except Exception as e:
         print("error while adding user {str(e)}")
-        return False # user wasem't added. alredy present?
-    return True # user added
+        return False  # user wasem't added. alredy present?
+    return True  # user added
