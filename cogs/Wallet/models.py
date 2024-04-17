@@ -34,5 +34,7 @@ class Wallet(Base):
     secret: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
 
+# class Tokens(Base):
+#     __tablename__ = "tokens"
 
 
