@@ -16,3 +16,8 @@ with open(f"{current_dir}/BasuToken.json", "r") as f:
 with open(f"{current_dir}/IUniswapV2Router02.json", "r") as f:
     router_abi = json.load(f)
     UNISWAP_ROUTER_ABI= router_abi["abi"]
+
+
+with open(f"{current_dir}/UNCX.json", "r") as f:
+    uncx = json.load(f)
+    UNXC_ABI = uncx
