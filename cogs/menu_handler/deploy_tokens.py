@@ -1,7 +1,6 @@
 from web3 import AsyncWeb3, Account
 
-# Uncomment later
-from ABI import FACTORY_ABI, TOKEN_ABI, UNISWAP_ROUTER_ABI
+from ABI import FACTORY_ABI, TOKEN_ABI, UNISWAP_ROUTER_ABI, UNXC_ABI
 from . import Chain, TxnHash, TokenInfo, TokenLiqAdded
 from cogs.Wallet import UserInfo
 from cogs.Wallet.wallet_manager import add_user_and_wallet
@@ -10,17 +9,20 @@ import asyncio
 
 chainID = {
     8453: {
-        "basu_factory": "0xd47f4829c84e2c557F79FEd69B8Fd94bD87a6d2c",
-        "uniswap_router": "0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4",
+        "basu_factory": "0x7969c5eD335650692Bc04293B07F5BF2e7A673C0",
+        "uniswap_router": "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+        "UNCX_lp_locker": "0xc4E637D37113192F4F1F060DaEbD7758De7F4131",
     }
 }
 
-# rpc_url = "https://base-sepolia.g.alchemy.com/v2/VNnfCVTskFB5Oo4eLFKiQ-AHMTCJM4qm"
-rpc_url ='http://127.0.0.1:8545'
+rpc_url = "http://127.0.0.1:8545"
+
+
 async def check_wallet_balance(address: str) -> int:
     w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider(rpc_url))
     bal = await w3.eth.get_balance(address)
     return w3.from_wei(bal, "ether")
+
 
 class AsyncDeployer:
     def __init__(
@@ -36,7 +38,9 @@ class AsyncDeployer:
         basu_tax_address: str,
     ):
         self.w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider(rpc_url))
-        self.factory_address = self.w3.to_checksum_address(chainID.get(8453)["basu_factory"])
+        self.factory_address = self.w3.to_checksum_address(
+            chainID.get(8453)["basu_factory"]
+        )
         self.factory = self.w3.eth.contract(
             address=self.factory_address, abi=FACTORY_ABI
         )
@@ -52,49 +56,15 @@ class AsyncDeployer:
 
         self.tg_id = tg_id
 
+    async def get_account(self):
+        user: UserInfo = await add_user_and_wallet(self.tg_id)
+        print(user.address, user.secret)
+        self.address = user.address
+        self.secret = user.secret
 
-    async def add_liquidity(self, token_address: str, _value: float):
-        print("ading liq......")
-        # Get router address
-        _value = self.w3.to_wei(_value, "ether")
-        x = await self.factory.functions.addLiquidity(token_address).build_transaction(
-            {
-                "from": self.address,
-                "gas": 30000000,
-                "nonce": await self.w3.eth.get_transaction_count(self.address),
-                "value": _value,
-            }
-        )
-        sign_txn = self.w3.eth.account.sign_transaction(x, self.secret)
-        txn_hash = await self.w3.eth.send_raw_transaction(sign_txn.rawTransaction)
-        print(txn_hash.hex())
-        return txn_hash.hex()
-
-    async def event_logs_for_adding_liquidity(self, txn_hash: TxnHash):
-        counter = 1
-        while counter < 4:
-            try:
-                await asyncio.sleep(counter + counter * 3)
-                counter += 1
-                logs = await self.factory.events.LiquidityAdded().get_logs(
-                    fromBlock=txn_hash.blockNumber
-                )
-                print(logs)
-                if not logs:
-                    counter += 1
-                    await asyncio.sleep(counter + counter * 3)
-                    continue
-
-                for log in logs:
-                    return TokenLiqAdded(
-                        log.args.token,
-                        self.w3.from_wei(log.args.tokensAdded, "ether"),
-                        self.w3.from_wei(log.args.WETHAdded, "ether"),
-                    )
-
-            except Exception as e:
-                print("RAISE AN ERROR")
-                print(str(e))
+    async def check_wallet_balance(self):
+        bal: int = await self.w3.eth.get_balance(self.address)
+        return self.w3.from_wei(bal, "ether")
 
     async def estimate_gas(self, cost: bool = False):
         """cost = True means return total cost of deployment"""
@@ -116,10 +86,6 @@ class AsyncDeployer:
             print(f"gas price {_gas_price}")
             return self.w3.from_wei(gas_estimate * _gas_price, "ether")
         return gas_estimate
-
-    async def check_wallet_balance(self):
-        bal: int = await self.w3.eth.get_balance(self.address)
-        return self.w3.from_wei(bal, "ether")
 
     async def deploy(self):
         # Gas estimate
@@ -144,11 +110,6 @@ class AsyncDeployer:
         sign_txn = self.w3.eth.account.sign_transaction(txn, self.secret)
         new_token = await self.w3.eth.send_raw_transaction(sign_txn.rawTransaction)
         return new_token.hex()
-
-    async def get_account(self):
-        user: UserInfo = await add_user_and_wallet(self.tg_id)
-        self.address = user.address
-        self.secret = user.secret
 
     async def wait_for_tx_hash(self, tx_hash: str) -> TxnHash:
         counter = 0
@@ -206,3 +167,93 @@ class AsyncDeployer:
                 print(str(e))
                 counter += 1
                 await asyncio.sleep(counter + counter * 3)
+
+    async def add_liquidity(self, token_address: str, _value: float):
+        print("adding liq......")
+        # Get router address
+        _value = self.w3.to_wei(_value, "ether")
+        try:
+            x = await self.factory.functions.addLiquidity(
+                token_address
+            ).build_transaction(
+                {
+                    "from": self.address,
+                    "gas": 30000000,
+                    "nonce": await self.w3.eth.get_transaction_count(self.address),
+                    "value": _value,
+                }
+            )
+            sign_txn = self.w3.eth.account.sign_transaction(x, self.secret)
+            txn_hash = await self.w3.eth.send_raw_transaction(sign_txn.rawTransaction)
+            print(txn_hash.hex())
+            return txn_hash.hex()
+        except Exception as e:
+            print(str(e))
+            return None
+
+    async def event_logs_for_adding_liquidity(self, txn_hash: TxnHash):
+        counter = 1
+        while counter < 4:
+            try:
+                await asyncio.sleep(counter + counter * 3)
+                counter += 1
+                logs = await self.factory.events.LiquidityAdded().get_logs(
+                    fromBlock=txn_hash.blockNumber
+                )
+                print(logs)
+                if not logs:
+                    counter += 1
+                    await asyncio.sleep(counter + counter * 3)
+                    continue
+
+                for log in logs:
+                    return TokenLiqAdded(
+                        log.args.token,
+                        self.w3.from_wei(log.args.tokensAdded, "ether"),
+                        self.w3.from_wei(log.args.WETHAdded, "ether"),
+                    )
+
+            except Exception as e:
+                print("RAISE AN ERROR")
+                print(str(e))
+
+    async def lock_tokens(self, token_address: str, unlock_date, _withdrawer=False):
+        if not _withdrawer:
+            _withdrawer = self.address
+
+        locker_address = self.w3.to_checksum_address(
+            chainID.get(8453)["UNCX_lp_locker"]
+        )
+        locker = self.w3.eth.contract(address=locker_address, abi=UNXC_ABI)
+
+        token_contract = self.w3.eth.contract(address=token_address, abi=TOKEN_ABI)
+        print(token_contract)
+        lp_token_address = await token_contract.functions.liquidityPoolAddress().call()
+        print(lp_token_address)
+
+        lp_token = self.w3.eth.contract(address=lp_token_address, abi=TOKEN_ABI)
+        _factory_token_balance = await lp_token.functions.balanceOf(
+            self.factory_address
+        ).call()
+
+        print(f"token lp tokens {_factory_token_balance}")
+        _countryCode = 90
+        txn = await self.factory.functions.lock_lp(
+            lp_token_address,
+            _factory_token_balance,
+            unlock_date,
+            self.factory_address,
+            True,
+            _withdrawer,
+            _countryCode,
+        ).build_transaction(
+            {
+                "from": self.address,
+                "value": self.w3.to_wei(0.1, "ether"),
+                "gas": 30000000,
+                "nonce": await self.w3.eth.get_transaction_count(self.address),
+            }
+        )
+        sign_txn = self.w3.eth.account.sign_transaction(txn, self.secret)
+        new_token = await self.w3.eth.send_raw_transaction(sign_txn.rawTransaction)
+        return new_token.hex()
