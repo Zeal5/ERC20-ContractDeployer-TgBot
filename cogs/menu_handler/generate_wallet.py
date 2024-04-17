@@ -1,11 +1,6 @@
 from telegram import Update
 from telegram.ext import (
     CallbackContext,
-    CallbackQueryHandler,
-    CommandHandler,
-    ConversationHandler,
-    MessageHandler,
-    filters,
 )
 
 from CustomExceptions import UnknownUserCallData, SomethingWentWrongWhileCreatingUser
