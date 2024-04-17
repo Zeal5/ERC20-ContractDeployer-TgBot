@@ -26,4 +26,3 @@ class TxnHash:
     blockNumber: int
     _from: str
     to: str
-
