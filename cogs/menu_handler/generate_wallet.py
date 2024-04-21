@@ -5,7 +5,7 @@ from telegram.ext import (
 
 from CustomExceptions import UnknownUserCallData, SomethingWentWrongWhileCreatingUser
 from cogs.menu_handler.deploy_tokens import check_wallet_balance
-from cogs.Wallet.wallet_manager import add_user_and_wallet,UserInfo
+from cogs.DataBase.wallet_manager import add_user_and_wallet,UserInfo
 
 
 async def get_user_info(update: Update, context: CallbackContext):

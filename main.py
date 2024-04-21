@@ -3,8 +3,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 
 # internal imports
-from cogs.menu import menu_convo_handler
-from cogs.Wallet import db_startup
+from cogs.menu_handler.menu import menu_convo_handler
+from cogs.DataBase import db_startup
 
 # std imports 
 import os, base64

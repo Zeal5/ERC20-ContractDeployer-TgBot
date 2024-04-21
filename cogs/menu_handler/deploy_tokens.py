@@ -2,14 +2,14 @@ from web3 import AsyncWeb3, Account
 
 from ABI import FACTORY_ABI, TOKEN_ABI, UNISWAP_ROUTER_ABI, UNXC_ABI
 from . import Chain, TxnHash, TokenInfo, TokenLiqAdded
-from cogs.Wallet import UserInfo
-from cogs.Wallet.wallet_manager import add_user_and_wallet
+from cogs.DataBase import UserInfo
+from cogs.DataBase.wallet_manager import add_user_and_wallet
 import asyncio
 
 
 chainID = {
     8453: {
-        "basu_factory": "0x7969c5eD335650692Bc04293B07F5BF2e7A673C0",
+        "basu_factory": "0x2bdCC0de6bE1f7D2ee689a0342D76F52E8EFABa3",
         "uniswap_router": "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
         "UNCX_lp_locker": "0xc4E637D37113192F4F1F060DaEbD7758De7F4131",
     }
