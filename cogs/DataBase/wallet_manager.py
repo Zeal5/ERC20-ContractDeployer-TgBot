@@ -1,26 +1,25 @@
 from . import Session
 from .models import Users, Wallet
 from sqlalchemy.future import select
+from sqlalchemy import delete
 from sqlalchemy.exc import NoResultFound
-from typing import Union
+from typing import Union, Optional
 from eth_account import Account
 from . import UserInfo
-import os
-from cryptography.fernet import Fernet
+from .helpers import encrypt_wallet_secret, decrypt_wallet_secret
 
 
-def encrypt_wallet_secret(data):
-    key = os.environ.get("KEY")
-    f = Fernet(key)
-    return f.encrypt(data.encode()).decode("utf-8")
-
-
-def decrypt_wallet_secret(data):
-    key = os.environ.get("KEY")
-    print(f'seceret stored {data}')
-    print(key)
-    f = Fernet(key)
-    return f.decrypt(data.encode()).decode("utf-8")
+async def delete_user(_id: int):
+    user: Optional[UserInfo] =await _check_user_exists(_id)
+    if user:
+        async with Session() as session:
+            async with session.begin():
+                stmt = delete(Users).where(Users.tg_id == _id)
+                await session.execute(stmt)
+                await session.commit()
+                return True
+    else:
+        return False
 
 
 async def _check_user_exists(_id: int) -> Union[bool, UserInfo]:
@@ -51,12 +50,13 @@ async def _check_user_exists(_id: int) -> Union[bool, UserInfo]:
                 return False
 
 
-async def add_user_and_wallet(tg_id: int):
+async def add_user_and_wallet(tg_id: int) -> Union[UserInfo,bool]:
     user_exists = await _check_user_exists(tg_id)
     if isinstance(user_exists, UserInfo):
         return user_exists
 
     account = Account.create(f"{tg_id}")
+    print("addingf user")
     try:
         async with Session() as session:
             async with session.begin():

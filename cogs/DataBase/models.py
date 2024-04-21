@@ -36,5 +36,3 @@ class Wallet(Base):
 
 # class Tokens(Base):
 #     __tablename__ = "tokens"
-
-
