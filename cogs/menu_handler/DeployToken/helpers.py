@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from typing import Optional
-from . import Token,TokenArgs
+from . import Token, TokenArgs
+
+
 def clean_token_args(_args: str) -> Optional[Token]:
     try:
         name, ticker, supply = _args.strip().split()
         return Token(name, ticker, int(supply))
     except Exception as e:
         return None
+
 
 def clean_token_tax_info(_info: str):
     try:
@@ -18,3 +21,20 @@ def clean_token_tax_info(_info: str):
     except Exception as e:
         print(f"exception in cleaning tax info {str(e)}")
         return None
+
+
+def clean_liq_info(query, call_back):
+    try:
+        if query:
+            return float(query.strip().split()[0])
+        elif call_back:
+            return float(call_back.strip())
+    except Exception as e:
+        print(str(e))
+        return
+
+
+
+
+
+

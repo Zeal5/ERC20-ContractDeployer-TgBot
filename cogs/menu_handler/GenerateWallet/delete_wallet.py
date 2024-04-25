@@ -9,7 +9,7 @@ from telegram.ext import (
 from CustomExceptions import UnknownUserCallData, SomethingWentWrongWhileCreatingUser
 from typing import Union
 from DeployToken.deployer import check_wallet_balance
-from DeployToken.deploy_token import DEL_WALLET, GENERATE_NEW_WALLET
+from cogs import DEL_WALLET, GENERATE_NEW_WALLET
 from cogs.DataBase.wallet_manager import (
     delete_user,
     add_user_and_wallet,

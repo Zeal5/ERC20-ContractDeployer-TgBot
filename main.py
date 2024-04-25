@@ -1,9 +1,13 @@
 from telegram import Update
+from warnings import filterwarnings
+from telegram.warnings import PTBUserWarning
+filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes,CallbackQueryHandler
 from dotenv import load_dotenv
 
 # internal imports
 from cogs.menu_handler.menu import menu_convo_handler
+from cogs.menu_handler.TransferTokens.transfer import transfer_tokens_convo_handler
 from cogs.DataBase import db_startup
 
 # std imports 
@@ -50,6 +54,7 @@ def main():
 
     # add cogs here 
     app.add_handler(menu_convo_handler,1)
+    app.add_handler(transfer_tokens_convo_handler,2)
 
     app.run_polling(0.1)
 
