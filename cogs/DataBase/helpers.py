@@ -10,7 +10,7 @@ def encrypt_wallet_secret(data):
 
 def decrypt_wallet_secret(data):
     key = os.environ.get("KEY")
-    print(f'seceret stored {data}')
+    print(f'decoding {data}')
     print(key)
     f = Fernet(key)
     return f.decrypt(data.encode()).decode("utf-8")
