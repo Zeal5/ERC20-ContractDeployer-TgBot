@@ -2,28 +2,29 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from time import time
 from telegram.ext import (
     CallbackContext,
+    MessageHandler,
+    CommandHandler,
     CallbackQueryHandler,
     ConversationHandler,
+    filters,
 )
 from dataclasses import dataclass
 from typing import Optional
 from CustomExceptions import UnknownUserCallData
 from .deployer import AsyncDeployer
-from .helpers import clean_token_args,clean_token_tax_info
-from . import TokenArgs,Token
-(
-    SHOW_MENU_BUTTONS,
+from .helpers import clean_token_args, clean_token_tax_info
+from . import TokenArgs, Token
+from cogs import (
+    RESTART,
     GET_TOKEN_ARGS,
     DEPLOY_TOKEN1,
     START_DEPLOYMENT,
     LOW_GAS_FEE,
     ADD_LIQ,
     LOCK_LIQ,
-    DEL_WALLET,
-    GENERATE_NEW_WALLET
-) = range(9)
+)
 
-from dataclasses import dataclass
+END = map(chr, range(18, 19))
 
 
 async def get_token_args(update: Update, context: CallbackContext):
@@ -41,6 +42,7 @@ async def get_token_args(update: Update, context: CallbackContext):
         "Enter BUY tax Sell tax and owner address.\nSeperated by space",
     )
     return DEPLOY_TOKEN1
+
 
 async def deploy_token(update: Update, context: CallbackContext):
     _reply = update.message.text
@@ -107,6 +109,7 @@ async def prompt_low_gas_fee(update: Update, context: CallbackContext):
         return LOW_GAS_FEE
     await pre_deployment_prompt(update, context, gas_fee)
     return START_DEPLOYMENT
+
 
 async def pre_deployment_prompt(update: Update, context: CallbackContext, gas_fee):
     button1 = InlineKeyboardButton("YES", callback_data="yes")
@@ -258,16 +261,57 @@ async def lock_liq_function(update: Update, context: CallbackContext):
     duration = 0
     if query is not None:
         match query:
-            case '1week':
+            case "1week":
                 duration = int(time()) + (7 * 24 * 60 * 60)
-            case '15days':
+            case "15days":
                 duration = int(time()) + (15 * 24 * 60 * 60)
-            case '1month':
+            case "1month":
                 duration = int(time()) + (30 * 24 * 60 * 60)
-            case '1year':
+            case "1year":
                 duration = int(time()) + (367 * 24 * 60 * 60)
     print(f"duration to lock {duration}")
     _deployer = context.user_data["deployer"]
     _token_address = context.user_data["token_address"]
-    hash = await _deployer.lock_tokens(_token_address,duration)
+    hash = await _deployer.lock_tokens(_token_address, duration)
     await context.bot.send_message(update.effective_chat.id, f"LIQ lock hash\n{hash}")
+
+
+async def stop(update: Update, context: CallbackContext):
+    text = "Click 'YES' to end this conversation now!"
+    button = InlineKeyboardButton("YES", callback_data="yes_goto_menu")
+    keyboard = [[button]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text=text, reply_markup=reply_markup)
+    return END
+
+
+deployer_convo_handler = ConversationHandler(
+    entry_points=[
+        MessageHandler(filters.TEXT & ~filters.COMMAND, get_token_args),
+        CommandHandler("stop", stop),
+    ],
+    states={
+        DEPLOY_TOKEN1: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, deploy_token),
+            CommandHandler("stop", stop),
+        ],
+        START_DEPLOYMENT: [
+            CallbackQueryHandler(start_deployment),
+            CommandHandler("stop", stop),
+        ],
+        LOW_GAS_FEE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, prompt_low_gas_fee),
+            CommandHandler("stop", stop),
+        ],
+        ADD_LIQ: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, add_liq_clicked),
+            CommandHandler("stop", stop),
+        ],
+        LOCK_LIQ: [
+            CallbackQueryHandler(lock_liq_function),
+            CommandHandler("stop", stop),
+        ],
+    },
+    map_to_parent={END: RESTART},
+    fallbacks=[],
+)
