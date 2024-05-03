@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 
 # internal imports
 from cogs.menu_handler.menu import menu_convo_handler
+from cogs.menu_handler.DeployerHelper.entry import midway_convo_handler
+from cogs.menu_handler.DeployerHelper.add_liq import  add_liq_convo_handler
+from cogs.menu_handler.DeployerHelper.lock_lp import lock_lp_convo_handler 
 from cogs.menu_handler.TransferTokens.transfer import transfer_tokens_convo_handler
 from cogs.DataBase import db_startup
 
@@ -55,6 +58,9 @@ def main():
     # add cogs here 
     app.add_handler(menu_convo_handler,1)
     app.add_handler(transfer_tokens_convo_handler,2)
+    app.add_handler(midway_convo_handler,3)
+    app.add_handler(add_liq_convo_handler,4)
+    app.add_handler(lock_lp_convo_handler ,5)
 
     app.run_polling(0.1)
 

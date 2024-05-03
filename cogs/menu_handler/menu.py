@@ -36,6 +36,7 @@ async def enter_main_menu(update: Update, context: CallbackContext) -> int:
     button2 = InlineKeyboardButton("Delete Wallet", callback_data="delete_wallet")
     button3 = InlineKeyboardButton("Deploy token", callback_data="deploy_token1")
     button4 = InlineKeyboardButton("Transfer Funds", callback_data="transfer_funds")
+    button5 = InlineKeyboardButton("ADD/LOCK liq", callback_data="partial")
 
     # Combine the two buttons in a single row, each list represents a new row
     keyboard = [
@@ -44,6 +45,7 @@ async def enter_main_menu(update: Update, context: CallbackContext) -> int:
             button3,
         ],
         [button4],
+        [button5],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)

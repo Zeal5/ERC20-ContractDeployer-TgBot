@@ -1,4 +1,11 @@
 (
+    WAIT_LOCK_DURATION,
+    WAIT_FOR_LIQ_ADDRESS,
+    ADD_LIQ_OR_LOCK_LIQ,
+    ADD_LIQ,
+    LOCK_LIQ,
+    WAIT_FOR_TOKEN_ADDRESS,
+    WAIT_FOR_ETH_TO_ADD,
     RESTART,
     SHOW_MENU_BUTTONS,
     GET_TOKEN_ARGS,
@@ -12,5 +19,14 @@
     GET_TOKEN_TAX_INFO,
     GET_TOKEN_INFO,
     GET_LIQ_INFO,
-    TRANSFER_FUNDS
-) = range(14)
+    TRANSFER_FUNDS,
+) = range(21)
+
+chainID = {
+    8453: {
+        "rpc_url": "http://127.0.0.1:8545",
+        "basu_factory": "0x7969c5eD335650692Bc04293B07F5BF2e7A673C0",
+        "uniswap_router": "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+        "UNCX_lp_locker": "0xc4E637D37113192F4F1F060DaEbD7758De7F4131",
+    }
+}
